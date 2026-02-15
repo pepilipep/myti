@@ -1,26 +1,6 @@
 import { getDb } from './db/database'
-import { setSetting } from './db/settings'
 import type { BusyBlock } from '@shared/types'
 import { log } from './logger'
-
-const BUSY_UNTIL_KEY = 'busy_until'
-
-export function getBusyUntil(): string | null {
-  const db = getDb()
-  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(BUSY_UNTIL_KEY) as
-    | { value: string }
-    | undefined
-  return row?.value || null
-}
-
-export function setBusyUntil(ts: string): void {
-  setSetting(BUSY_UNTIL_KEY, ts)
-}
-
-export function clearBusyUntil(): void {
-  const db = getDb()
-  db.prepare('DELETE FROM settings WHERE key = ?').run(BUSY_UNTIL_KEY)
-}
 
 function findMeetingsCategoryId(): number | null {
   const db = getDb()

@@ -3,7 +3,7 @@ import { listCategories } from './db/categories'
 import { getDb } from './db/database'
 import { getAllSettings, setSetting } from './db/settings'
 import { log } from './logger'
-import { clearBusyUntil, getBusyUntil } from './meeting-manager'
+
 import { getPopupWindow, showPopupWindow } from './windows'
 
 const POLL_INTERVAL_MS = 10_000
@@ -20,7 +20,7 @@ function getNextPromptAt(): string | null {
   return row?.value || null
 }
 
-function setNextPromptAt(iso: string): void {
+export function setNextPromptAt(iso: string): void {
   setSetting(NEXT_PROMPT_KEY, iso)
 }
 
@@ -105,13 +105,6 @@ function poll(): void {
 
     // Time to prompt — schedule the next one first
     scheduleNext()
-
-    // Suppress prompts during active meeting
-    const busy = getBusyUntil()
-    if (busy) {
-      if (now < new Date(busy).getTime()) return
-      clearBusyUntil()
-    }
 
     // Don't stack popups
     if (getPopupWindow()) return

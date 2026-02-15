@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, shell } from 'electron'
+import { BrowserWindow, screen, shell } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 
@@ -6,13 +6,6 @@ let popupWindow: BrowserWindow | null = null
 let meetingPopupWindow: BrowserWindow | null = null
 let reportsWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
-
-function hideDockIfNoWindows(): void {
-  const hasDockedWindow = reportsWindow || settingsWindow
-  if (!hasDockedWindow) {
-    app.dock.hide()
-  }
-}
 
 function getRendererUrl(hash: string): string {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -49,8 +42,7 @@ export function showPopupWindow(): BrowserWindow | null {
   popupWindow.setAlwaysOnTop(true, 'pop-up-menu')
   popupWindow.loadURL(getRendererUrl('/popup'))
   popupWindow.once('ready-to-show', () => {
-    popupWindow?.showInactive()
-    popupWindow?.focus()
+    popupWindow?.show()
   })
   popupWindow.on('closed', () => {
     popupWindow = null
@@ -98,8 +90,7 @@ export function showMeetingPopupWindow(): BrowserWindow | null {
   meetingPopupWindow.setAlwaysOnTop(true, 'pop-up-menu')
   meetingPopupWindow.loadURL(getRendererUrl('/meeting-confirm'))
   meetingPopupWindow.once('ready-to-show', () => {
-    meetingPopupWindow?.showInactive()
-    meetingPopupWindow?.focus()
+    meetingPopupWindow?.show()
   })
   meetingPopupWindow.on('closed', () => {
     meetingPopupWindow = null
@@ -126,8 +117,10 @@ export function showReportsWindow(): void {
   }
 
   reportsWindow = new BrowserWindow({
+    type: 'panel',
     width: 800,
     height: 600,
+    skipTaskbar: true,
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -136,14 +129,14 @@ export function showReportsWindow(): void {
   })
 
   reportsWindow.loadURL(getRendererUrl('/reports'))
-  reportsWindow.once('ready-to-show', async () => {
-    await app.dock.show()
+  reportsWindow.once('ready-to-show', () => {
+    reportsWindow?.setAlwaysOnTop(true, 'floating')
     reportsWindow?.show()
     reportsWindow?.focus()
+    reportsWindow?.setAlwaysOnTop(false)
   })
   reportsWindow.on('closed', () => {
     reportsWindow = null
-    hideDockIfNoWindows()
   })
   reportsWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
@@ -158,8 +151,10 @@ export function showSettingsWindow(): void {
   }
 
   settingsWindow = new BrowserWindow({
+    type: 'panel',
     width: 500,
     height: 400,
+    skipTaskbar: true,
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -168,13 +163,13 @@ export function showSettingsWindow(): void {
   })
 
   settingsWindow.loadURL(getRendererUrl('/settings'))
-  settingsWindow.once('ready-to-show', async () => {
-    await app.dock.show()
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow?.setAlwaysOnTop(true, 'floating')
     settingsWindow?.show()
     settingsWindow?.focus()
+    settingsWindow?.setAlwaysOnTop(false)
   })
   settingsWindow.on('closed', () => {
     settingsWindow = null
-    hideDockIfNoWindows()
   })
 }

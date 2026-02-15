@@ -4,10 +4,10 @@ import { listCategories, upsertCategory, deleteCategory } from './db/categories'
 import { getAllSettings, setSetting } from './db/settings'
 import { getDayReport, getWeekReport, getAverageReport, getWeekTimeline } from './db/reports'
 import { closePopupWindow, showMeetingPopupWindow, closeMeetingPopupWindow } from './windows'
-import { toggleTracking, isTracking, restartTimer, clearCurrentPromptedAt } from './timer'
+import { toggleTracking, isTracking, restartTimer, clearCurrentPromptedAt, setNextPromptAt } from './timer'
 import { updateMenu } from './tray'
 import { getUpcomingBusyBlock } from './calendar'
-import { createMeetingEntries, setBusyUntil } from './meeting-manager'
+import { createMeetingEntries } from './meeting-manager'
 import { log } from './logger'
 import type { BusyBlock, MeetingPopupData } from '@shared/types'
 
@@ -103,7 +103,7 @@ export function registerIpcHandlers(): void {
 
   handle('meeting:confirm', (block: BusyBlock) => {
     createMeetingEntries(block)
-    setBusyUntil(block.end)
+    setNextPromptAt(block.end)
     closeMeetingPopupWindow()
   })
 

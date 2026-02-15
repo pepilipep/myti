@@ -17,6 +17,9 @@ if (!gotLock) {
   app.quit()
 }
 
+// Hide from dock — tray-only app
+if (app.dock) app.dock.hide()
+
 // Init logger early (after app name is set so userData path is correct)
 initLogger()
 log.info('App starting')
