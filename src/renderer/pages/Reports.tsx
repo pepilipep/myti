@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { DayReport, WeekReport, DayReportEntry } from '@shared/types'
+import type { DayReport, WeekReport, WeekTimeline, DayReportEntry } from '@shared/types'
 import DaySummary from '../components/DaySummary'
 import WeekSummary from '../components/WeekSummary'
+import CalendarView from '../components/CalendarView'
 import DateRangePicker from '../components/DateRangePicker'
 
 type View = 'day' | 'week' | 'average'
@@ -21,13 +22,19 @@ function Reports(): JSX.Element {
   const [date, setDate] = useState(todayStr())
   const [dayReport, setDayReport] = useState<DayReport | null>(null)
   const [weekReport, setWeekReport] = useState<WeekReport | null>(null)
+  const [weekTimeline, setWeekTimeline] = useState<WeekTimeline | null>(null)
   const [avgReport, setAvgReport] = useState<DayReportEntry[]>([])
 
   const load = useCallback(async () => {
     if (view === 'day') {
       setDayReport(await window.api.reportDay(date))
     } else if (view === 'week') {
-      setWeekReport(await window.api.reportWeek(date))
+      const [report, timeline] = await Promise.all([
+        window.api.reportWeek(date),
+        window.api.reportWeekTimeline(date)
+      ])
+      setWeekReport(report)
+      setWeekTimeline(timeline)
     } else {
       // Average over last 30 days
       const end = todayStr()
@@ -79,6 +86,17 @@ function Reports(): JSX.Element {
       )}
 
       {view === 'day' && dayReport && <DaySummary report={dayReport} />}
+      {view === 'week' && weekTimeline && (
+        <div style={{ marginBottom: 16 }}>
+          <CalendarView
+            report={weekTimeline}
+            onDayClick={(d) => {
+              setDate(d)
+              setView('day')
+            }}
+          />
+        </div>
+      )}
       {view === 'week' && weekReport && <WeekSummary report={weekReport} />}
       {view === 'average' && (
         <div>

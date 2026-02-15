@@ -8,7 +8,6 @@ export function getAllSettings(): Settings {
   for (const row of rows) map[row.key] = row.value
   return {
     interval_minutes: parseInt(map.interval_minutes ?? '20', 10),
-    afk_threshold_minutes: parseInt(map.afk_threshold_minutes ?? '20', 10),
     tracking_active: (map.tracking_active ?? '1') === '1'
   }
 }

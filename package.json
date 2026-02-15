@@ -12,6 +12,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"shared/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"shared/**/*.ts\"",
+    "pack": "electron-builder --mac --dir",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -21,12 +22,39 @@
     ]
   },
   "dependencies": {
+    "@electron-toolkit/utils": "^3.0.0",
     "better-sqlite3": "^11.7.0",
-    "recharts": "^2.15.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
-    "@electron-toolkit/utils": "^3.0.0"
+    "recharts": "^2.15.0"
+  },
+  "build": {
+    "appId": "com.myti.app",
+    "productName": "myti",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": "dir",
+      "extendInfo": {
+        "NSCalendarsUsageDescription": "myti reads your calendar to detect meetings and auto-track them."
+      }
+    },
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources"
+      }
+    ]
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.1",
@@ -36,6 +64,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
+    "electron-builder": "^26.7.0",
     "electron-vite": "^2.3.0",
     "eslint": "^9.39.2",
     "eslint-plugin-react-hooks": "^7.0.1",

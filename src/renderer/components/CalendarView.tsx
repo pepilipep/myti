@@ -1,30 +1,56 @@
 import type { WeekTimeline } from '@shared/types'
+import { useState } from 'react'
 
 interface Props {
   report: WeekTimeline
   onDayClick: (date: string) => void
 }
 
+interface Tooltip {
+  text: string
+  x: number
+  y: number
+}
+
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const HOUR_HEIGHT = 28
+const HOUR_HEIGHT = 36
 const START_HOUR = 6
 const END_HOUR = 24
 const TOTAL_HOURS = END_HOUR - START_HOUR
 const COLUMN_HEIGHT = TOTAL_HOURS * HOUR_HEIGHT
 
-function getMinutesFromMidnight(isoString: string): number {
-  const d = new Date(isoString)
-  return d.getHours() * 60 + d.getMinutes()
-}
-
 function CalendarView({ report, onDayClick }: Props): JSX.Element {
   const today = new Date().toISOString().split('T')[0]
+  const [tooltip, setTooltip] = useState<Tooltip | null>(null)
 
   const hourLabels: number[] = []
   for (let h = START_HOUR; h < END_HOUR; h++) hourLabels.push(h)
 
   return (
-    <div style={{ display: 'flex', gap: 0 }}>
+    <div style={{ display: 'flex', gap: 0, position: 'relative' }}>
+      {/* Tooltip */}
+      {tooltip && (
+        <div
+          style={{
+            position: 'fixed',
+            left: tooltip.x - 8,
+            top: tooltip.y - 28,
+            transform: 'translateX(-100%)',
+            background: '#1a1a2e',
+            border: '1px solid #404050',
+            borderRadius: 4,
+            padding: '4px 8px',
+            fontSize: 11,
+            color: '#e0e0e8',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            zIndex: 1000
+          }}
+        >
+          {tooltip.text}
+        </div>
+      )}
+
       {/* Hour labels column */}
       <div style={{ width: 32, flexShrink: 0, paddingTop: 36 }}>
         <div style={{ position: 'relative', height: COLUMN_HEIGHT }}>
@@ -110,17 +136,26 @@ function CalendarView({ report, onDayClick }: Props): JSX.Element {
 
                 {/* Entries */}
                 {day.entries.map((entry, j) => {
-                  const mins = getMinutesFromMidnight(entry.prompted_at)
+                  // Entry covers the period *before* prompted_at
+                  const endTime = new Date(entry.prompted_at)
+                  const startTime = new Date(endTime.getTime() - entry.credited_minutes * 60_000)
+                  const startMins = startTime.getHours() * 60 + startTime.getMinutes()
                   const startMin = START_HOUR * 60
-                  const top = ((mins - startMin) / (TOTAL_HOURS * 60)) * COLUMN_HEIGHT
+                  const top = ((startMins - startMin) / (TOTAL_HOURS * 60)) * COLUMN_HEIGHT
                   const height = Math.max(3, (entry.credited_minutes / (TOTAL_HOURS * 60)) * COLUMN_HEIGHT)
 
-                  if (mins < startMin) return null
+                  if (startMins < startMin) return null
+
+                  const fmt = (d: Date): string =>
+                    d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  const label = `${entry.category_name} — ${fmt(startTime)}\u2013${fmt(endTime)}`
 
                   return (
                     <div
                       key={j}
-                      title={`${entry.category_name} — ${new Date(entry.prompted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${entry.credited_minutes}m)`}
+                      onMouseEnter={(e) => setTooltip({ text: label, x: e.clientX, y: e.clientY })}
+                      onMouseMove={(e) => setTooltip({ text: label, x: e.clientX, y: e.clientY })}
+                      onMouseLeave={() => setTooltip(null)}
                       style={{
                         position: 'absolute',
                         top,

@@ -1,4 +1,5 @@
 import { Tray, Menu, nativeImage } from 'electron'
+import { is } from '@electron-toolkit/utils'
 import path from 'path'
 import { showReportsWindow, showSettingsWindow } from './windows'
 import { toggleTracking, isTracking } from './timer'
@@ -17,7 +18,10 @@ export function createTray(): Tray {
   }
 
   tray = new Tray(icon)
-  tray.setToolTip('myti')
+  tray.setToolTip(is.dev ? 'myti (dev)' : 'myti')
+  if (is.dev) {
+    tray.setTitle('Dev')
+  }
   updateMenu()
   return tray
 }

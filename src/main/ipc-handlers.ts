@@ -2,55 +2,92 @@ import { ipcMain, BrowserWindow } from 'electron'
 import { createEntry } from './db/entries'
 import { listCategories, upsertCategory, deleteCategory } from './db/categories'
 import { getAllSettings, setSetting } from './db/settings'
-import { getDayReport, getWeekReport, getAverageReport } from './db/reports'
-import { closePopupWindow } from './windows'
+import { getDayReport, getWeekReport, getAverageReport, getWeekTimeline } from './db/reports'
+import { closePopupWindow, showMeetingPopupWindow, closeMeetingPopupWindow } from './windows'
 import { toggleTracking, isTracking, restartTimer, clearCurrentPromptedAt } from './timer'
 import { updateMenu } from './tray'
+import { getUpcomingBusyBlock } from './calendar'
+import { createMeetingEntries, setBusyUntil } from './meeting-manager'
+import { log } from './logger'
+import type { BusyBlock, MeetingPopupData } from '@shared/types'
+
+function handle(channel: string, handler: (...args: unknown[]) => unknown): void {
+  ipcMain.handle(channel, async (_event, ...args) => {
+    try {
+      return await handler(...args)
+    } catch (err) {
+      log.error(`IPC ${channel} failed`, err)
+      throw err
+    }
+  })
+}
 
 export function registerIpcHandlers(): void {
-  ipcMain.handle('entry:submit', (_event, categoryId: number, promptedAt: string) => {
+  handle('entry:submit', async (categoryId: number, promptedAt: string) => {
     const respondedAt = new Date().toISOString()
     createEntry(categoryId, promptedAt, respondedAt)
     clearCurrentPromptedAt()
     closePopupWindow()
+
+    // Check for upcoming meetings
+    const block = await getUpcomingBusyBlock()
+    if (block) {
+      const start = new Date(block.start)
+      const end = new Date(block.end)
+      const fmt = (d: Date): string => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const data: MeetingPopupData = {
+        busyBlock: block,
+        formattedTime: `${fmt(start)}\u2013${fmt(end)}`
+      }
+      const meetingWin = showMeetingPopupWindow()
+      if (meetingWin) {
+        meetingWin.webContents.once('did-finish-load', () => {
+          meetingWin.webContents.send('meeting-popup:show', data)
+        })
+      }
+    }
   })
 
-  ipcMain.handle('categories:list', () => {
+  handle('categories:list', () => {
     return listCategories()
   })
 
-  ipcMain.handle('categories:upsert', (_event, category) => {
+  handle('categories:upsert', (category) => {
     return upsertCategory(category)
   })
 
-  ipcMain.handle('categories:delete', (_event, id: number) => {
+  handle('categories:delete', (id: number) => {
     deleteCategory(id)
   })
 
-  ipcMain.handle('report:day', (_event, date: string) => {
+  handle('report:day', (date: string) => {
     return getDayReport(date)
   })
 
-  ipcMain.handle('report:week', (_event, startDate: string) => {
+  handle('report:week', (startDate: string) => {
     return getWeekReport(startDate)
   })
 
-  ipcMain.handle('report:average', (_event, startDate: string, endDate: string) => {
+  handle('report:average', (startDate: string, endDate: string) => {
     return getAverageReport(startDate, endDate)
   })
 
-  ipcMain.handle('settings:getAll', () => {
+  handle('report:weekTimeline', (startDate: string) => {
+    return getWeekTimeline(startDate)
+  })
+
+  handle('settings:getAll', () => {
     return getAllSettings()
   })
 
-  ipcMain.handle('settings:set', (_event, key: string, value: string) => {
+  handle('settings:set', (key: string, value: string) => {
     setSetting(key, value)
     if (key === 'interval_minutes') {
       restartTimer()
     }
   })
 
-  ipcMain.handle('tracking:toggle', () => {
+  handle('tracking:toggle', () => {
     const active = toggleTracking()
     updateMenu()
     // Notify all renderer windows
@@ -60,7 +97,17 @@ export function registerIpcHandlers(): void {
     return active
   })
 
-  ipcMain.handle('tracking:getStatus', () => {
+  handle('tracking:getStatus', () => {
     return isTracking()
+  })
+
+  handle('meeting:confirm', (block: BusyBlock) => {
+    createMeetingEntries(block)
+    setBusyUntil(block.end)
+    closeMeetingPopupWindow()
+  })
+
+  handle('meeting:decline', () => {
+    closeMeetingPopupWindow()
   })
 }

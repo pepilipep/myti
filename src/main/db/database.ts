@@ -35,7 +35,7 @@ function migrate(db: Database.Database): void {
       prompted_at      TEXT NOT NULL,
       responded_at     TEXT NOT NULL,
       credited_minutes REAL NOT NULL,
-      is_afk           INTEGER NOT NULL DEFAULT 0,
+
       created_at       TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -70,7 +70,6 @@ function migrate(db: Database.Database): void {
   if (settingsCount.c === 0) {
     const insert = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)')
     insert.run('interval_minutes', '20')
-    insert.run('afk_threshold_minutes', '20')
     insert.run('tracking_active', '1')
   }
 }

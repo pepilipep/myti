@@ -22,13 +22,6 @@ function Settings(): JSX.Element {
     setSettings((s) => (s ? { ...s, interval_minutes: num } : s))
   }
 
-  async function saveAfkThreshold(value: string): Promise<void> {
-    const num = parseInt(value, 10)
-    if (isNaN(num) || num < 1) return
-    await window.api.settingsSet('afk_threshold_minutes', String(num))
-    setSettings((s) => (s ? { ...s, afk_threshold_minutes: num } : s))
-  }
-
   async function saveCat(): Promise<void> {
     if (!editingCat?.name || !editingCat?.color) return
     await window.api.categoriesUpsert(editingCat as Partial<Category> & { name: string; color: string })
@@ -78,19 +71,6 @@ function Settings(): JSX.Element {
           defaultValue={settings.interval_minutes}
           min={1}
           onBlur={(e) => saveInterval(e.target.value)}
-        />
-      </div>
-
-      <div style={{ marginBottom: 20 }}>
-        <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>
-          AFK threshold (minutes)
-        </label>
-        <input
-          type="number"
-          style={input}
-          defaultValue={settings.afk_threshold_minutes}
-          min={1}
-          onBlur={(e) => saveAfkThreshold(e.target.value)}
         />
       </div>
 

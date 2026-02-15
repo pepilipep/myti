@@ -1,5 +1,12 @@
 import { getDb } from './database'
-import type { DayReport, DayReportEntry, WeekReport } from '@shared/types'
+import type {
+  DayReport,
+  DayReportEntry,
+  WeekReport,
+  DayTimeline,
+  WeekTimeline,
+  TimelineEntry
+} from '@shared/types'
 
 interface DayReportRow {
   category_id: number
@@ -84,6 +91,54 @@ export function getWeekReport(startDate: string): WeekReport {
     days,
     totals,
     total_minutes: totals.reduce((s, e) => s + e.total_minutes, 0)
+  }
+}
+
+function getDayTimeline(date: string): DayTimeline {
+  const db = getDb()
+  const rows = db
+    .prepare(
+      `
+    SELECT
+      e.prompted_at,
+      e.credited_minutes,
+      c.name as category_name,
+      c.color
+    FROM entries e
+    JOIN categories c ON c.id = e.category_id
+    WHERE date(e.prompted_at) = date(?)
+    ORDER BY e.prompted_at ASC
+  `
+    )
+    .all(date) as TimelineEntry[]
+
+  return {
+    date,
+    entries: rows,
+    total_minutes: rows.reduce((s, e) => s + e.credited_minutes, 0)
+  }
+}
+
+export function getWeekTimeline(startDate: string): WeekTimeline {
+  const start = new Date(startDate)
+  const day = start.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  start.setDate(start.getDate() + diff)
+
+  const days: DayTimeline[] = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start)
+    d.setDate(d.getDate() + i)
+    days.push(getDayTimeline(d.toISOString().split('T')[0]))
+  }
+
+  const end = new Date(start)
+  end.setDate(end.getDate() + 6)
+
+  return {
+    start_date: start.toISOString().split('T')[0],
+    end_date: end.toISOString().split('T')[0],
+    days
   }
 }
 

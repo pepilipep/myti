@@ -1,10 +1,34 @@
-import { getAllSettings, setSetting } from './db/settings'
-import { listCategories } from './db/categories'
-import { showPopupWindow, getPopupWindow } from './windows'
 import type { PopupData } from '@shared/types'
+import { listCategories } from './db/categories'
+import { getDb } from './db/database'
+import { getAllSettings, setSetting } from './db/settings'
+import { log } from './logger'
+import { clearBusyUntil, getBusyUntil } from './meeting-manager'
+import { getPopupWindow, showPopupWindow } from './windows'
 
-let intervalId: NodeJS.Timeout | null = null
+const POLL_INTERVAL_MS = 10_000
+const NEXT_PROMPT_KEY = 'next_prompt_at'
+
+let pollId: NodeJS.Timeout | null = null
 let currentPromptedAt: string | null = null
+
+function getNextPromptAt(): string | null {
+  const db = getDb()
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(NEXT_PROMPT_KEY) as
+    | { value: string }
+    | undefined
+  return row?.value || null
+}
+
+function setNextPromptAt(iso: string): void {
+  setSetting(NEXT_PROMPT_KEY, iso)
+}
+
+function scheduleNext(): void {
+  const settings = getAllSettings()
+  const next = new Date(Date.now() + settings.interval_minutes * 60_000).toISOString()
+  setNextPromptAt(next)
+}
 
 export function isTracking(): boolean {
   return getAllSettings().tracking_active
@@ -27,21 +51,32 @@ export function startTimer(): void {
   const settings = getAllSettings()
   if (!settings.tracking_active) return
 
-  const intervalMs = settings.interval_minutes * 60 * 1000
-  intervalId = setInterval(() => {
-    tick()
-  }, intervalMs)
+  // Initialize or fix stale next_prompt_at
+  const stored = getNextPromptAt()
+  if (!stored) {
+    scheduleNext()
+  } else {
+    const staleThreshold = settings.interval_minutes * 60_000
+    const msSinceNext = Date.now() - new Date(stored).getTime()
+    if (msSinceNext > staleThreshold) {
+      // Stale (e.g. next day) — reset rather than prompting immediately
+      scheduleNext()
+    }
+  }
+
+  pollId = setInterval(() => poll(), POLL_INTERVAL_MS)
 }
 
 export function stopTimer(): void {
-  if (intervalId) {
-    clearInterval(intervalId)
-    intervalId = null
+  if (pollId) {
+    clearInterval(pollId)
+    pollId = null
   }
 }
 
 export function restartTimer(): void {
   if (isTracking()) {
+    scheduleNext()
     startTimer()
   }
 }
@@ -54,24 +89,49 @@ export function clearCurrentPromptedAt(): void {
   currentPromptedAt = null
 }
 
-function tick(): void {
-  // Don't stack popups
-  if (getPopupWindow()) return
+function poll(): void {
+  try {
+    if (!isTracking()) return
 
-  const categories = listCategories()
-  if (categories.length === 0) return
+    const nextStr = getNextPromptAt()
+    console.log({ nextStr })
+    if (!nextStr) {
+      scheduleNext()
+      return
+    }
 
-  currentPromptedAt = new Date().toISOString()
-  const popup = showPopupWindow()
-  if (!popup) return
+    const now = Date.now()
+    if (now < new Date(nextStr).getTime()) return
 
-  const data: PopupData = {
-    categories,
-    promptedAt: currentPromptedAt
+    // Time to prompt — schedule the next one first
+    scheduleNext()
+
+    // Suppress prompts during active meeting
+    const busy = getBusyUntil()
+    if (busy) {
+      if (now < new Date(busy).getTime()) return
+      clearBusyUntil()
+    }
+
+    // Don't stack popups
+    if (getPopupWindow()) return
+
+    const categories = listCategories()
+    if (categories.length === 0) return
+
+    currentPromptedAt = new Date().toISOString()
+    const popup = showPopupWindow()
+    if (!popup) return
+
+    const data: PopupData = {
+      categories,
+      promptedAt: currentPromptedAt
+    }
+
+    popup.webContents.once('did-finish-load', () => {
+      popup.webContents.send('popup:show', data)
+    })
+  } catch (err) {
+    log.error('Poll failed', err)
   }
-
-  // Send data once the window is ready
-  popup.webContents.once('did-finish-load', () => {
-    popup.webContents.send('popup:show', data)
-  })
 }
