@@ -25,7 +25,8 @@ function handle(channel: string, handler: (...args: unknown[]) => unknown): void
 export function registerIpcHandlers(): void {
   handle('entry:submit', async (categoryId: number, promptedAt: string) => {
     const respondedAt = new Date().toISOString()
-    createEntry(categoryId, promptedAt, respondedAt)
+    const settings = getAllSettings()
+    createEntry(categoryId, promptedAt, respondedAt, settings.interval_minutes)
     clearCurrentPromptedAt()
     closePopupWindow()
 
@@ -41,9 +42,13 @@ export function registerIpcHandlers(): void {
       }
       const meetingWin = showMeetingPopupWindow()
       if (meetingWin) {
-        meetingWin.webContents.once('did-finish-load', () => {
+        if (meetingWin.webContents.isLoading()) {
+          meetingWin.webContents.once('did-finish-load', () => {
+            meetingWin.webContents.send('meeting-popup:show', data)
+          })
+        } else {
           meetingWin.webContents.send('meeting-popup:show', data)
-        })
+        }
       }
     }
   })

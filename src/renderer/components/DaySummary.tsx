@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from 'recharts'
 import type { DayReport } from '@shared/types'
+import { formatMinutes } from '../utils/format'
 
 interface Props {
   report: DayReport
@@ -38,12 +39,6 @@ function DaySummary({ report }: Props): JSX.Element {
       </ResponsiveContainer>
     </div>
   )
-}
-
-function formatMinutes(m: number): string {
-  const hrs = Math.floor(m / 60)
-  const mins = Math.round(m % 60)
-  return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
 }
 
 export default DaySummary

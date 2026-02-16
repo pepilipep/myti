@@ -76,7 +76,6 @@ export function stopTimer(): void {
 
 export function restartTimer(): void {
   if (isTracking()) {
-    scheduleNext()
     startTimer()
   }
 }
@@ -94,7 +93,6 @@ function poll(): void {
     if (!isTracking()) return
 
     const nextStr = getNextPromptAt()
-    console.log({ nextStr })
     if (!nextStr) {
       scheduleNext()
       return
@@ -121,9 +119,13 @@ function poll(): void {
       promptedAt: currentPromptedAt
     }
 
-    popup.webContents.once('did-finish-load', () => {
+    if (popup.webContents.isLoading()) {
+      popup.webContents.once('did-finish-load', () => {
+        popup.webContents.send('popup:show', data)
+      })
+    } else {
       popup.webContents.send('popup:show', data)
-    })
+    }
   } catch (err) {
     log.error('Poll failed', err)
   }

@@ -112,7 +112,10 @@ export function getMeetingPopupWindow(): BrowserWindow | null {
 
 export function showReportsWindow(): void {
   if (reportsWindow && !reportsWindow.isDestroyed()) {
+    reportsWindow.setAlwaysOnTop(true, 'floating')
+    reportsWindow.show()
     reportsWindow.focus()
+    reportsWindow.setAlwaysOnTop(false)
     return
   }
 
@@ -146,7 +149,10 @@ export function showReportsWindow(): void {
 
 export function showSettingsWindow(): void {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.setAlwaysOnTop(true, 'floating')
+    settingsWindow.show()
     settingsWindow.focus()
+    settingsWindow.setAlwaysOnTop(false)
     return
   }
 

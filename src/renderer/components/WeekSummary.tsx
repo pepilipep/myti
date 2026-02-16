@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { WeekReport } from '@shared/types'
+import { formatMinutes } from '../utils/format'
 
 interface Props {
   report: WeekReport
@@ -49,12 +50,6 @@ function WeekSummary({ report }: Props): JSX.Element {
       </ResponsiveContainer>
     </div>
   )
-}
-
-function formatMinutes(m: number): string {
-  const hrs = Math.floor(m / 60)
-  const mins = Math.round(m % 60)
-  return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
 }
 
 export default WeekSummary
