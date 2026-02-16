@@ -7,15 +7,11 @@ import { toggleTracking, isTracking } from './timer'
 let tray: Tray | null = null
 
 export function createTray(): Tray {
-  const iconPath = path.join(__dirname, '../../resources/trayTemplate.png')
-  let icon: nativeImage
-  try {
-    icon = nativeImage.createFromPath(iconPath)
-    icon.setTemplateImage(true)
-  } catch {
-    // Fallback: create a simple 16x16 icon
-    icon = nativeImage.createEmpty()
-  }
+  const resourceDir = is.dev
+    ? path.join(__dirname, '../../resources')
+    : path.join(process.resourcesPath, 'resources')
+  const icon = nativeImage.createFromPath(path.join(resourceDir, 'trayTemplate.png'))
+  icon.setTemplateImage(true)
 
   tray = new Tray(icon)
   tray.setToolTip(is.dev ? 'myti (dev)' : 'myti')
