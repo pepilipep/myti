@@ -1,4 +1,4 @@
-import { Tray, Menu, nativeImage } from 'electron'
+import { app, Tray, Menu, nativeImage } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import path from 'path'
 import { showReportsWindow, showSettingsWindow } from './windows'
@@ -7,9 +7,9 @@ import { toggleTracking, isTracking } from './timer'
 let tray: Tray | null = null
 
 export function createTray(): Tray {
-  const resourceDir = is.dev
-    ? path.join(__dirname, '../../resources')
-    : path.join(process.resourcesPath, 'resources')
+  const resourceDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'resources')
+    : path.join(__dirname, '../../resources')
   const icon = nativeImage.createFromPath(path.join(resourceDir, 'trayTemplate.png'))
   icon.setTemplateImage(true)
 

@@ -15,6 +15,7 @@ pack:
 # Package, copy to /Applications, and add to Login Items
 install: pack
 	@echo "Installing myti.app..."
+	rm -rf /Applications/myti.app
 	cp -R dist/mac-arm64/myti.app /Applications/myti.app
 	osascript -e 'tell application "System Events" to make login item at end with properties {path:"/Applications/myti.app", hidden:true}' 2>/dev/null || true
 	@echo "Installed to /Applications and added to Login Items"
