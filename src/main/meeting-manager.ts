@@ -25,5 +25,5 @@ export function createMeetingEntries(busyBlock: BusyBlock): void {
   db.prepare(
     `INSERT INTO entries (category_id, prompted_at, responded_at, credited_minutes)
      VALUES (?, ?, ?, ?)`
-  ).run(categoryId, busyBlock.start, busyBlock.start, durationMinutes)
+  ).run(categoryId, busyBlock.end, busyBlock.end, durationMinutes)
 }
