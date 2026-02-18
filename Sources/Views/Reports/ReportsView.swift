@@ -13,10 +13,12 @@ struct ReportsView: View {
     @State private var weekReport: WeekReport?
     @State private var weekTimeline: WeekTimeline?
     @State private var avgReport: [DayReportEntry] = []
+    @State private var hoveredCalendarText: String?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Sticky header
+            VStack(alignment: .leading, spacing: 12) {
                 // Tab bar
                 HStack(spacing: 8) {
                     ForEach(ReportViewType.allCases, id: \.self) { type in
@@ -45,29 +47,50 @@ struct ReportsView: View {
                     )
                 }
 
-                // Content
-                switch viewType {
-                case .day:
-                    if let report = dayReport {
-                        DaySummaryView(report: report)
-                    }
-
-                case .week:
-                    if let timeline = weekTimeline {
-                        CalendarGridView(report: timeline) { clickedDate in
-                            date = clickedDate
-                            viewType = .day
-                        }
-                    }
-                    if let report = weekReport {
-                        WeekSummaryView(report: report)
-                    }
-
-                case .average:
-                    AverageView(entries: avgReport)
+                // Hovered calendar entry (fixed height to avoid layout shift)
+                if viewType == .week {
+                    Text(hoveredCalendarText ?? " ")
+                        .font(.system(size: 11))
+                        .foregroundColor(hoveredCalendarText != nil ? AppColors.text : .clear)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(hoveredCalendarText != nil ? Color(hex: "#1a1a2e") : .clear)
+                        )
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            // Scrollable content
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch viewType {
+                    case .day:
+                        if let report = dayReport {
+                            DaySummaryView(report: report)
+                        }
+
+                    case .week:
+                        if let timeline = weekTimeline {
+                            CalendarGridView(report: timeline, onDayClick: { clickedDate in
+                                date = clickedDate
+                                viewType = .day
+                            }, hoveredText: $hoveredCalendarText)
+                        }
+                        if let report = weekReport {
+                            WeekSummaryView(report: report)
+                        }
+
+                    case .average:
+                        AverageView(entries: avgReport)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            }
         }
         .background(AppColors.background)
         .onChange(of: viewType) { _, _ in loadData() }

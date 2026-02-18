@@ -10,6 +10,7 @@ private let columnHeight = CGFloat(totalHours) * hourHeight
 struct CalendarGridView: View {
     let report: WeekTimeline
     let onDayClick: (String) -> Void
+    @Binding var hoveredText: String?
 
     @State private var hoveredEntry: HoveredEntry?
 
@@ -102,7 +103,6 @@ struct CalendarGridView: View {
                 }
             }
         }
-        .overlay(tooltipOverlay, alignment: .topLeading)
     }
 
     @ViewBuilder
@@ -129,32 +129,16 @@ struct CalendarGridView: View {
                         timeFormatter.dateFormat = "HH:mm"
                         let label = "\(entry.categoryName) — \(timeFormatter.string(from: startTime))–\(timeFormatter.string(from: endTime))"
                         hoveredEntry = HoveredEntry(id: entryId, text: label)
+                        hoveredText = label
                     } else if hoveredEntry?.id == entryId {
                         hoveredEntry = nil
+                        hoveredText = nil
                     }
                 }
         }
     }
 
-    @ViewBuilder
-    private var tooltipOverlay: some View {
-        if let tip = hoveredEntry {
-            Text(tip.text)
-                .font(.system(size: 11))
-                .foregroundColor(AppColors.text)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(hex: "#1a1a2e"))
-                        .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
-                )
-                .allowsHitTesting(false)
-                .transition(.opacity)
-        }
-    }
-
-    private func parseDateStr(_ str: String) -> Date {
+private func parseDateStr(_ str: String) -> Date {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: str) ?? Date()
