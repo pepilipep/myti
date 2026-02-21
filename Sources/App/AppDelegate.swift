@@ -150,9 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func logNow() {
-        let categories = CategoryStore.shared.listCategories()
-        guard !categories.isEmpty else { return }
         let promptedAt = ISO8601DateFormatter().string(from: Date())
-        WindowManager.shared.showPopup(categories: categories, promptedAt: promptedAt)
+        WindowManager.shared.showPopup(promptedAt: promptedAt)
     }
 }

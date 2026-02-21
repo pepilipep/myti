@@ -29,13 +29,14 @@ final class ReportStore {
             try Row.fetchAll(db, sql: """
                 SELECT
                     e.id as entry_id,
-                    e.category_id,
+                    a.category_id,
                     c.name as category_name,
                     c.color,
                     e.prompted_at,
                     e.credited_minutes
                 FROM entries e
-                JOIN categories c ON c.id = e.category_id
+                JOIN activities a ON a.id = e.activity_id
+                JOIN categories c ON c.id = a.category_id
                 WHERE \(whereClause)
                 ORDER BY e.prompted_at ASC
             """, arguments: arguments)

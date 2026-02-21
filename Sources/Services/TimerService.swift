@@ -94,11 +94,8 @@ final class TimerService: ObservableObject {
         // Don't stack popups
         if WindowManager.shared.isPopupVisible { return }
 
-        let categories = CategoryStore.shared.listCategories()
-        guard !categories.isEmpty else { return }
-
         currentPromptedAt = dateToISO(Date())
-        WindowManager.shared.showPopup(categories: categories, promptedAt: currentPromptedAt!)
+        WindowManager.shared.showPopup(promptedAt: currentPromptedAt!)
     }
 
     // MARK: - Date Helpers

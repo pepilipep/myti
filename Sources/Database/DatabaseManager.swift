@@ -44,13 +44,12 @@ final class DatabaseManager {
                     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
                 );
 
-                CREATE TABLE IF NOT EXISTS entries (
-                    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                    category_id      INTEGER NOT NULL REFERENCES categories(id),
-                    prompted_at      TEXT NOT NULL,
-                    responded_at     TEXT NOT NULL,
-                    credited_minutes REAL NOT NULL,
-                    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+                CREATE TABLE IF NOT EXISTS activities (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name        TEXT NOT NULL,
+                    category_id INTEGER REFERENCES categories(id),
+                    is_active   INTEGER NOT NULL DEFAULT 1,
+                    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
                 );
 
                 CREATE TABLE IF NOT EXISTS settings (
@@ -88,6 +87,62 @@ final class DatabaseManager {
                                arguments: ["interval_minutes", "20"])
                 try db.execute(sql: "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
                                arguments: ["tracking_active", "1"])
+            }
+
+            // Migration v1: entries table gets activity_id instead of category_id
+            let version = try Int.fetchOne(db, sql: "PRAGMA user_version") ?? 0
+            if version < 1 {
+                // Check if old entries table has category_id column (pre-migration)
+                let hasOldEntries = try Bool.fetchOne(db, sql: """
+                    SELECT COUNT(*) > 0 FROM sqlite_master
+                    WHERE type = 'table' AND name = 'entries'
+                    AND sql LIKE '%category_id%'
+                """) ?? false
+
+                if hasOldEntries {
+                    // Create "unspecified" activity for each existing category
+                    try db.execute(sql: """
+                        INSERT INTO activities (name, category_id)
+                        SELECT 'unspecified', id FROM categories
+                    """)
+
+                    // Recreate entries table with activity_id
+                    try db.execute(sql: """
+                        CREATE TABLE entries_new (
+                            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                            activity_id      INTEGER NOT NULL REFERENCES activities(id),
+                            prompted_at      TEXT NOT NULL,
+                            responded_at     TEXT NOT NULL,
+                            credited_minutes REAL NOT NULL,
+                            created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+                        )
+                    """)
+
+                    // Migrate entries: map category_id -> matching "unspecified" activity
+                    try db.execute(sql: """
+                        INSERT INTO entries_new (id, activity_id, prompted_at, responded_at, credited_minutes, created_at)
+                        SELECT e.id, a.id, e.prompted_at, e.responded_at, e.credited_minutes, e.created_at
+                        FROM entries e
+                        JOIN activities a ON a.category_id = e.category_id AND a.name = 'unspecified'
+                    """)
+
+                    try db.execute(sql: "DROP TABLE entries")
+                    try db.execute(sql: "ALTER TABLE entries_new RENAME TO entries")
+                } else {
+                    // Fresh install or already migrated — create entries table with activity_id
+                    try db.execute(sql: """
+                        CREATE TABLE IF NOT EXISTS entries (
+                            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                            activity_id      INTEGER NOT NULL REFERENCES activities(id),
+                            prompted_at      TEXT NOT NULL,
+                            responded_at     TEXT NOT NULL,
+                            credited_minutes REAL NOT NULL,
+                            created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+                        )
+                    """)
+                }
+
+                try db.execute(sql: "PRAGMA user_version = 1")
             }
         }
 

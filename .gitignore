@@ -1,3 +1,6 @@
 .build/
 *.db
+*.o
+*.d
+*.swiftdeps
 .DS_Store

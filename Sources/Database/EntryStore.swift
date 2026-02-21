@@ -19,15 +19,15 @@ final class EntryStore {
         }
     }
 
-    func createEntry(categoryId: Int64, promptedAt: String, respondedAt: String, creditedMinutes: Double) {
+    func createEntry(activityId: Int64, promptedAt: String, respondedAt: String, creditedMinutes: Double) {
         do {
             try db.write { db in
                 try db.execute(
                     sql: """
-                        INSERT INTO entries (category_id, prompted_at, responded_at, credited_minutes)
+                        INSERT INTO entries (activity_id, prompted_at, responded_at, credited_minutes)
                         VALUES (?, ?, ?, ?)
                     """,
-                    arguments: [categoryId, promptedAt, respondedAt, creditedMinutes]
+                    arguments: [activityId, promptedAt, respondedAt, creditedMinutes]
                 )
             }
         } catch {

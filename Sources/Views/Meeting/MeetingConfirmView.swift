@@ -53,7 +53,7 @@ struct MeetingConfirmView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            KeyMonitor.shared.start(categoryCount: 0) { _ in }
+            KeyMonitor.shared.stop()
             MeetingKeyMonitor.shared.start(onConfirm: onConfirm, onDecline: onDecline)
         }
         .onDisappear {

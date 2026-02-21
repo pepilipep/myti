@@ -17,25 +17,43 @@ final class WindowManager {
         popupPanel?.isVisible ?? false
     }
 
-    func showPopup(categories: [Category], promptedAt: String) {
+    func showPopup(promptedAt: String) {
         if let existing = popupPanel, existing.isVisible {
             existing.makeKeyAndOrderFront(nil)
             return
         }
 
+        let activities = ActivityStore.shared.listByUsage()
+        let categories = CategoryStore.shared.listCategories()
+        var categoryColors: [Int64: String] = [:]
+        var categoryNames: [Int64: String] = [:]
+        for cat in categories {
+            if let id = cat.id {
+                categoryColors[id] = cat.color
+                categoryNames[id] = cat.name
+            }
+        }
+
         let screenSize = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1440, height: 900)
         let width: CGFloat = 320
-        let height: CGFloat = 260
+        let height: CGFloat = 450
         let x = (screenSize.width - width) / 2
         let y = (screenSize.height - height) / 2
 
         let panel = PopupPanel(contentRect: NSRect(x: x, y: y, width: width, height: height))
 
         let popupView = PopupView(
-            categories: categories,
+            activities: activities,
+            categoryColors: categoryColors,
+            categoryNames: categoryNames,
             promptedAt: promptedAt,
-            onSubmit: { [weak self] categoryId, promptedAt in
-                self?.handleEntrySubmit(categoryId: categoryId, promptedAt: promptedAt)
+            onSubmit: { [weak self] activityId, promptedAt in
+                self?.handleEntrySubmit(activityId: activityId, promptedAt: promptedAt)
+            },
+            onCreateAndSubmit: { [weak self] name, promptedAt in
+                guard let activity = ActivityStore.shared.findOrCreate(name: name),
+                      let activityId = activity.id else { return }
+                self?.handleEntrySubmit(activityId: activityId, promptedAt: promptedAt)
             }
         )
         .frame(width: width, height: height)
@@ -52,14 +70,14 @@ final class WindowManager {
         popupPanel = nil
     }
 
-    private func handleEntrySubmit(categoryId: Int64, promptedAt: String) {
+    private func handleEntrySubmit(activityId: Int64, promptedAt: String) {
         let now = Date()
         let isoFmt = ISO8601DateFormatter()
         isoFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let respondedAt = isoFmt.string(from: now)
         let settings = SettingsStore.shared.getAll()
         EntryStore.shared.createEntry(
-            categoryId: categoryId,
+            activityId: activityId,
             promptedAt: promptedAt,
             respondedAt: respondedAt,
             creditedMinutes: Double(settings.intervalMinutes)
@@ -149,12 +167,12 @@ final class WindowManager {
         }
 
         let panel = FloatingPanel(
-            contentRect: NSRect(x: 200, y: 200, width: 800, height: 600),
+            contentRect: NSRect(x: 200, y: 200, width: 1000, height: 800),
             title: "myti — Reports"
         )
 
         let reportsView = ReportsView()
-            .frame(minWidth: 800, minHeight: 600)
+            .frame(minWidth: 1000, minHeight: 800)
             .background(AppColors.background)
 
         PanelHosting.setContent(reportsView, in: panel)

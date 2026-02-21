@@ -3,7 +3,10 @@ import SwiftUI
 struct SettingsView: View {
     @State private var settings: AppSettings?
     @State private var categories: [Category] = []
+    @State private var activities: [Activity] = []
     @State private var editingCat: EditingCategory?
+    @State private var editingActivityId: Int64?
+    @State private var editingActivityName: String = ""
     @State private var intervalText: String = "20"
 
     struct EditingCategory {
@@ -161,6 +164,105 @@ struct SettingsView: View {
                     .background(RoundedRectangle(cornerRadius: 4).fill(AppColors.accent))
                     .buttonStyle(.plain)
                 }
+                // Activities
+                Text("Activities")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AppColors.text)
+                    .padding(.top, 8)
+
+                VStack(spacing: 6) {
+                    ForEach(activities) { activity in
+                        HStack(spacing: 8) {
+                            // Category color dot
+                            Circle()
+                                .fill(Color(hex: categoryColor(for: activity)))
+                                .frame(width: 10, height: 10)
+
+                            // Editable name
+                            if editingActivityId == activity.id {
+                                TextField("Name", text: $editingActivityName)
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(AppColors.text)
+                                    .frame(width: 140)
+                                    .padding(.vertical, 2)
+                                    .padding(.horizontal, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(AppColors.surface)
+                                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(AppColors.border, lineWidth: 1))
+                                    )
+                                    .onSubmit { saveActivityName(activity) }
+
+                                Button("Save") { saveActivityName(activity) }
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 2)
+                                    .padding(.horizontal, 8)
+                                    .background(RoundedRectangle(cornerRadius: 4).fill(AppColors.accent))
+                                    .buttonStyle(.plain)
+
+                                Button("Cancel") { editingActivityId = nil }
+                                    .font(.system(size: 11))
+                                    .foregroundColor(AppColors.textMuted)
+                                    .buttonStyle(.plain)
+                            } else {
+                                Text(activity.name)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(AppColors.text)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            // Category picker
+                            Picker("", selection: Binding<Int64?>(
+                                get: { activity.categoryId },
+                                set: { newCatId in
+                                    guard let actId = activity.id else { return }
+                                    ActivityStore.shared.updateCategory(activityId: actId, categoryId: newCatId)
+                                    loadData()
+                                }
+                            )) {
+                                Text("None").tag(nil as Int64?)
+                                ForEach(categories) { cat in
+                                    HStack(spacing: 4) {
+                                        Circle()
+                                            .fill(Color(hex: cat.color))
+                                            .frame(width: 8, height: 8)
+                                        Text(cat.name)
+                                    }
+                                    .tag(cat.id as Int64?)
+                                }
+                            }
+                            .frame(width: 130)
+                            .labelsHidden()
+
+                            // Rename
+                            if editingActivityId != activity.id {
+                                Button("Rename") {
+                                    editingActivityId = activity.id
+                                    editingActivityName = activity.name
+                                }
+                                .font(.system(size: 11))
+                                .foregroundColor(AppColors.textMuted)
+                                .buttonStyle(.plain)
+                            }
+
+                            // Delete
+                            Button("Delete") {
+                                if let id = activity.id {
+                                    ActivityStore.shared.delete(id: id)
+                                    loadData()
+                                }
+                            }
+                            .font(.system(size: 11))
+                            .foregroundColor(AppColors.danger)
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
                 #if DEBUG
                 // Debug info
                 VStack(alignment: .leading, spacing: 4) {
@@ -201,6 +303,22 @@ struct SettingsView: View {
         settings = s
         intervalText = "\(s.intervalMinutes)"
         categories = CategoryStore.shared.listCategories()
+        activities = ActivityStore.shared.listByUsage()
+    }
+
+    private func categoryColor(for activity: Activity) -> String {
+        guard let catId = activity.categoryId,
+              let cat = categories.first(where: { $0.id == catId }) else {
+            return "#6B7280"
+        }
+        return cat.color
+    }
+
+    private func saveActivityName(_ activity: Activity) {
+        guard let id = activity.id, !editingActivityName.isEmpty else { return }
+        ActivityStore.shared.rename(activityId: id, name: editingActivityName)
+        editingActivityId = nil
+        loadData()
     }
 
     private func saveInterval() {
