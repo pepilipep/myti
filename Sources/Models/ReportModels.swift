@@ -1,4 +1,4 @@
-struct DayReportEntry: Identifiable {
+struct DayReportEntry: Identifiable, Equatable {
     let categoryId: Int64
     let categoryName: String
     let color: String
@@ -8,13 +8,13 @@ struct DayReportEntry: Identifiable {
     var id: Int64 { categoryId }
 }
 
-struct DayReport {
+struct DayReport: Equatable {
     let date: String
     let entries: [DayReportEntry]
     let totalMinutes: Double
 }
 
-struct WeekReport {
+struct WeekReport: Equatable {
     let startDate: String
     let endDate: String
     let days: [DayReport]
@@ -22,11 +22,14 @@ struct WeekReport {
     let totalMinutes: Double
 }
 
-struct TimelineEntry {
+struct TimelineEntry: Identifiable {
+    let entryId: Int64
     let promptedAt: String
     let creditedMinutes: Double
     let categoryName: String
     let color: String
+
+    var id: Int64 { entryId }
 }
 
 struct DayTimeline {

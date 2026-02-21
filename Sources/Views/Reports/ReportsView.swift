@@ -1,19 +1,16 @@
 import SwiftUI
 
 enum ReportViewType: String, CaseIterable {
-    case day = "Day"
     case week = "Week"
     case average = "Average"
 }
 
 struct ReportsView: View {
-    @State private var viewType: ReportViewType = .day
+    @State private var viewType: ReportViewType = .week
     @State private var date: String = Self.todayStr()
-    @State private var dayReport: DayReport?
     @State private var weekReport: WeekReport?
     @State private var weekTimeline: WeekTimeline?
     @State private var avgReport: [DayReportEntry] = []
-    @State private var hoveredCalendarText: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -38,26 +35,13 @@ struct ReportsView: View {
                 }
 
                 // Date picker (not for average)
-                if viewType != .average {
+                if viewType == .week {
                     DateRangePickerView(
                         label: dateLabel,
-                        onPrev: { date = addDays(date, n: viewType == .day ? -1 : -7) },
-                        onNext: { date = addDays(date, n: viewType == .day ? 1 : 7) },
+                        onPrev: { date = addDays(date, n: -7) },
+                        onNext: { date = addDays(date, n: 7) },
                         onToday: { date = Self.todayStr() }
                     )
-                }
-
-                // Hovered calendar entry (fixed height to avoid layout shift)
-                if viewType == .week {
-                    Text(hoveredCalendarText ?? " ")
-                        .font(.system(size: 11))
-                        .foregroundColor(hoveredCalendarText != nil ? AppColors.text : .clear)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(hoveredCalendarText != nil ? Color(hex: "#1a1a2e") : .clear)
-                        )
                 }
             }
             .padding(.horizontal, 20)
@@ -68,20 +52,19 @@ struct ReportsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     switch viewType {
-                    case .day:
-                        if let report = dayReport {
-                            DaySummaryView(report: report)
-                        }
-
                     case .week:
-                        if let timeline = weekTimeline {
-                            CalendarGridView(report: timeline, onDayClick: { clickedDate in
-                                date = clickedDate
-                                viewType = .day
-                            }, hoveredText: $hoveredCalendarText)
-                        }
-                        if let report = weekReport {
-                            WeekSummaryView(report: report)
+                        HStack(alignment: .top, spacing: 16) {
+                            if let timeline = weekTimeline {
+                                CalendarGridView(report: timeline, onEntryDelete: { entryId in
+                                    EntryStore.shared.deleteEntry(id: entryId)
+                                    loadData()
+                                })
+                            }
+                            if let report = weekReport {
+                                WeekSummaryView(report: report)
+                                    .equatable()
+                                    .frame(minWidth: 220)
+                            }
                         }
 
                     case .average:
@@ -99,9 +82,7 @@ struct ReportsView: View {
     }
 
     private var dateLabel: String {
-        if viewType == .day {
-            return date
-        } else if let wr = weekReport {
+        if let wr = weekReport {
             return "\(wr.startDate) — \(wr.endDate)"
         }
         return date
@@ -109,9 +90,6 @@ struct ReportsView: View {
 
     private func loadData() {
         switch viewType {
-        case .day:
-            dayReport = ReportStore.shared.getDayReport(date: date)
-
         case .week:
             weekReport = ReportStore.shared.getWeekReport(startDate: date)
             weekTimeline = ReportStore.shared.getWeekTimeline(startDate: date)

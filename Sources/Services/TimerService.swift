@@ -63,6 +63,10 @@ final class TimerService: ObservableObject {
         SettingsStore.shared.setNextPromptAt(iso)
     }
 
+    func rescheduleFromNow() {
+        scheduleNext()
+    }
+
     // MARK: - Private
 
     private func scheduleNext() {

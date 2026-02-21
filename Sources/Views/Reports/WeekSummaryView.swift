@@ -3,79 +3,81 @@ import Charts
 
 private let dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-struct WeekSummaryView: View {
+struct WeekSummaryView: View, Equatable {
     let report: WeekReport
 
     @State private var hoveredDay: String?
+    @State private var mouseLocation: CGPoint = .zero
+
+    static func == (lhs: WeekSummaryView, rhs: WeekSummaryView) -> Bool {
+        lhs.report == rhs.report
+    }
+
+    private var maxDayMinutes: Double {
+        report.days.map(\.totalMinutes).max() ?? 0
+    }
+
+    private var hoveredDayData: DayReport? {
+        guard let hDay = hoveredDay,
+              let dayIndex = dayNames.firstIndex(of: hDay),
+              dayIndex < report.days.count,
+              report.days[dayIndex].totalMinutes > 0 else { return nil }
+        return report.days[dayIndex]
+    }
 
     var body: some View {
         if report.totalMinutes == 0 {
-            Text("No entries for this week")
+            Text("No entries")
                 .foregroundColor(AppColors.textDimmest)
-                .frame(maxWidth: .infinity)
-                .padding(20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Week total: \(formatMinutes(report.totalMinutes))")
+                Text("Week: \(formatMinutes(report.totalMinutes))")
                     .font(.system(size: 13))
                     .foregroundColor(AppColors.textDimmer)
 
                 Chart {
                     ForEach(Array(report.days.enumerated()), id: \.offset) { dayIndex, day in
                         ForEach(day.entries) { entry in
-                            BarMark(
-                                x: .value("Day", dayNames[dayIndex]),
-                                y: .value("Minutes", entry.totalMinutes)
-                            )
-                            .foregroundStyle(Color(hex: entry.color).opacity(
-                                hoveredDay == nil || hoveredDay == dayNames[dayIndex] ? 1.0 : 0.4
-                            ))
-                        }
-                    }
-
-                    if let hDay = hoveredDay,
-                       let dayIndex = dayNames.firstIndex(of: hDay),
-                       dayIndex < report.days.count {
-                        let dayTotal = report.days[dayIndex].totalMinutes
-                        if dayTotal > 0 {
-                            RuleMark(x: .value("Day", hDay))
-                                .foregroundStyle(AppColors.textDimmest)
-                                .lineStyle(StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
-                                .annotation(position: .top) {
-                                    Text(formatMinutes(dayTotal))
-                                        .font(.system(size: 11))
-                                        .foregroundColor(AppColors.text)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 4)
-                                                .fill(Color(hex: "#1a1a2e"))
-                                        )
-                                }
-                        }
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks { value in
-                        AxisValueLabel {
-                            if let name = value.as(String.self) {
-                                Text(name)
-                                    .foregroundColor(AppColors.textDimmer)
-                            }
+                                BarMark(
+                                    x: .value("Minutes", entry.totalMinutes),
+                                    y: .value("Day", dayNames[dayIndex]),
+                                    height: 8
+                                )
+                                .foregroundStyle(Color(hex: entry.color).opacity(
+                                    hoveredDay == nil || hoveredDay == dayNames[dayIndex] ? 1.0 : 0.4
+                                ))
                         }
                     }
                 }
                 .chartYAxis {
                     AxisMarks { value in
                         AxisValueLabel {
+                            if let name = value.as(String.self) {
+                                Text(name)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(AppColors.textDimmer)
+                            }
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks { value in
+                        AxisValueLabel {
                             if let v = value.as(Double.self) {
                                 Text("\(Int(v))m")
+                                    .font(.system(size: 10))
                                     .foregroundColor(AppColors.textDimmest)
                             }
                         }
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(AppColors.borderSubtle)
                     }
+                }
+                .chartXScale(domain: 0 ... maxDayMinutes * 1.15)
+                .chartYScale(domain: dayNames)
+                .chartPlotStyle { plot in
+                    plot.frame(height: 200)
                 }
                 .chartOverlay { proxy in
                     GeometryReader { geo in
@@ -85,7 +87,8 @@ struct WeekSummaryView: View {
                             .onContinuousHover { phase in
                                 switch phase {
                                 case .active(let location):
-                                    if let day: String = proxy.value(atX: location.x) {
+                                    mouseLocation = location
+                                    if let day: String = proxy.value(atY: location.y) {
                                         hoveredDay = day
                                     }
                                 case .ended:
@@ -94,27 +97,36 @@ struct WeekSummaryView: View {
                             }
                     }
                 }
-                .frame(height: 300)
-
-                // Legend
-                legendView
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var legendView: some View {
-        let categories = report.totals
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), alignment: .leading)], spacing: 4) {
-            ForEach(categories) { entry in
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color(hex: entry.color))
-                        .frame(width: 8, height: 8)
-                    Text(entry.categoryName)
-                        .font(.system(size: 11))
-                        .foregroundColor(AppColors.textDimmer)
+                .overlay(alignment: .topLeading) {
+                    if let day = hoveredDayData {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(day.entries) { entry in
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(Color(hex: entry.color))
+                                        .frame(width: 6, height: 6)
+                                    Text("\(entry.categoryName) \(formatMinutes(entry.totalMinutes))")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(AppColors.text)
+                                }
+                            }
+                            Text(formatMinutes(day.totalMinutes))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(AppColors.textDimmer)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(hex: "#1a1a2e"))
+                        )
+                        .fixedSize()
+                        .offset(x: mouseLocation.x + 12, y: mouseLocation.y + 12)
+                        .allowsHitTesting(false)
+                        .zIndex(1)
+                    }
                 }
+
             }
         }
     }

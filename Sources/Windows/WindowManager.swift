@@ -53,7 +53,10 @@ final class WindowManager {
     }
 
     private func handleEntrySubmit(categoryId: Int64, promptedAt: String) {
-        let respondedAt = ISO8601DateFormatter().string(from: Date())
+        let now = Date()
+        let isoFmt = ISO8601DateFormatter()
+        isoFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let respondedAt = isoFmt.string(from: now)
         let settings = SettingsStore.shared.getAll()
         EntryStore.shared.createEntry(
             categoryId: categoryId,
@@ -63,6 +66,15 @@ final class WindowManager {
         )
         TimerService.shared.clearCurrentPromptedAt()
         closePopup()
+
+        // If the user was AFK too long, reschedule from now instead of from the original prompt
+        if let promptDate = isoFmt.date(from: promptedAt) {
+            let delaySec = now.timeIntervalSince(promptDate)
+            let thresholdSec = Double(settings.intervalMinutes) * 60.0 / 5.0
+            if delaySec > thresholdSec {
+                TimerService.shared.rescheduleFromNow()
+            }
+        }
 
         // Check for upcoming meetings
         CalendarService.shared.getUpcomingBusyBlock { [weak self] block in
@@ -102,7 +114,12 @@ final class WindowManager {
             formattedTime: formattedTime,
             onConfirm: { [weak self] in
                 MeetingManager.shared.createMeetingEntries(busyBlock: block)
-                TimerService.shared.setNextPromptAt(block.end)
+                let isoFmt = ISO8601DateFormatter()
+                isoFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                let endDate = isoFmt.date(from: block.end) ?? Date()
+                let settings = SettingsStore.shared.getAll()
+                let nextPrompt = endDate.addingTimeInterval(Double(settings.intervalMinutes) * 60)
+                TimerService.shared.setNextPromptAt(isoFmt.string(from: nextPrompt))
                 self?.closeMeetingPopup()
             },
             onDecline: { [weak self] in

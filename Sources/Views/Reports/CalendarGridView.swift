@@ -9,8 +9,7 @@ private let columnHeight = CGFloat(totalHours) * hourHeight
 
 struct CalendarGridView: View {
     let report: WeekTimeline
-    let onDayClick: (String) -> Void
-    @Binding var hoveredText: String?
+    var onEntryDelete: ((Int64) -> Void)?
 
     @State private var hoveredEntry: HoveredEntry?
 
@@ -84,6 +83,22 @@ struct CalendarGridView: View {
                         }
                         .frame(height: columnHeight)
                         .clipped()
+                        .overlay(alignment: .topLeading) {
+                            if let hovered = hoveredEntry, hovered.id.dayIndex == index {
+                                Text(hovered.text)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(AppColors.text)
+                                    .fixedSize()
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(Color(hex: "#1a1a2e"))
+                                    )
+                                    .offset(y: hovered.top + hovered.height / 2 - 10)
+                                    .allowsHitTesting(false)
+                            }
+                        }
 
                         // Total hours
                         if day.totalMinutes > 0 {
@@ -96,10 +111,7 @@ struct CalendarGridView: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        onDayClick(day.date)
-                    }
+                    .zIndex(hoveredEntry?.id.dayIndex == index ? 1 : 0)
                 }
             }
         }
@@ -128,17 +140,20 @@ struct CalendarGridView: View {
                         let timeFormatter = DateFormatter()
                         timeFormatter.dateFormat = "HH:mm"
                         let label = "\(entry.categoryName) — \(timeFormatter.string(from: startTime))–\(timeFormatter.string(from: endTime))"
-                        hoveredEntry = HoveredEntry(id: entryId, text: label)
-                        hoveredText = label
+                        hoveredEntry = HoveredEntry(id: entryId, text: label, top: top, height: height)
                     } else if hoveredEntry?.id == entryId {
                         hoveredEntry = nil
-                        hoveredText = nil
+                    }
+                }
+                .contextMenu {
+                    Button("Delete", role: .destructive) {
+                        onEntryDelete?(entry.entryId)
                     }
                 }
         }
     }
 
-private func parseDateStr(_ str: String) -> Date {
+    private func parseDateStr(_ str: String) -> Date {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: str) ?? Date()
@@ -161,4 +176,6 @@ private struct EntryId: Equatable {
 private struct HoveredEntry {
     let id: EntryId
     let text: String
+    let top: CGFloat
+    let height: CGFloat
 }

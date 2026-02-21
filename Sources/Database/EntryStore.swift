@@ -9,6 +9,16 @@ final class EntryStore {
         DatabaseManager.shared.dbQueue!
     }
 
+    func deleteEntry(id: Int64) {
+        do {
+            try db.write { db in
+                try db.execute(sql: "DELETE FROM entries WHERE id = ?", arguments: [id])
+            }
+        } catch {
+            Logger.shared.error("deleteEntry failed", error: error)
+        }
+    }
+
     func createEntry(categoryId: Int64, promptedAt: String, respondedAt: String, creditedMinutes: Double) {
         do {
             try db.write { db in
