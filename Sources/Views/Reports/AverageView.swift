@@ -28,7 +28,7 @@ struct AverageView: View {
 
                         Spacer()
 
-                        Text("\(entry.totalMinutes, specifier: "%.1f")m/day")
+                        Text("\(formatAverageTime(entry.totalMinutes))/day")
                             .font(.system(size: 13))
                             .foregroundColor(AppColors.textDimmer)
                     }
